@@ -73,6 +73,7 @@ func List(subfolder string, opts *Options) ([]string, error) {
 	return ret, nil
 }
 
+// Show is equivalent to the "show" subcommand.
 func Show(name string, opts *Options) ([]byte, error) {
 	content, err := execCommand("show", []string{name}, nil, opts)
 	if err != nil {
