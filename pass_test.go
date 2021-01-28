@@ -2,6 +2,7 @@ package pass
 
 import (
 	"bytes"
+	"context"
 	"io/ioutil"
 	"log"
 	"os"
@@ -10,6 +11,7 @@ import (
 )
 
 const (
+	// created using: gpg2 --full-generate-key
 	testGpgID         = "0F5E1E3F3CE3019D9A3AD09313B82ACF5C4BAB55"
 	testGpgPassphrase = "test_passphrase"
 
@@ -25,7 +27,8 @@ func TestInit(t *testing.T) {
 	opts := &Options{
 		StoreDir: storeDir,
 	}
-	err = Init(testGpgID, "", opts)
+	ctx := context.Background()
+	err = Init(ctx, testGpgID, "", opts)
 	Ok(t, err)
 
 	got, err := ioutil.ReadFile(filepath.Join(storeDir, ".gpg-id"))
@@ -49,10 +52,11 @@ func TestInsert(t *testing.T) {
 	opts := &Options{
 		StoreDir: storeDir,
 	}
-	err = Init(testGpgID, "", opts)
+	ctx := context.Background()
+	err = Init(ctx, testGpgID, "", opts)
 	Ok(t, err)
 
-	err = Insert("bar", []byte("mypassword"), false, opts)
+	err = Insert(ctx, "bar", []byte("my_password"), false, opts)
 	Ok(t, err)
 
 	_, err = os.Stat(filepath.Join(storeDir, "bar.gpg"))
@@ -68,13 +72,14 @@ func TestCopy(t *testing.T) {
 	opts := &Options{
 		StoreDir: storeDir,
 	}
-	err = Init(testGpgID, "", opts)
+	ctx := context.Background()
+	err = Init(ctx, testGpgID, "", opts)
 	Ok(t, err)
 
-	err = Insert("bar", []byte("mypassword"), false, opts)
+	err = Insert(ctx, "bar", []byte("my_password"), false, opts)
 	Ok(t, err)
 
-	err = Copy("bar", "baz", false, opts)
+	err = Copy(ctx, "bar", "baz", false, opts)
 	Ok(t, err)
 
 	_, err = os.Stat(filepath.Join(storeDir, "baz.gpg"))
@@ -90,17 +95,18 @@ func TestList(t *testing.T) {
 	opts := &Options{
 		StoreDir: storeDir,
 	}
-	err = Init(testGpgID, "", opts)
+	ctx := context.Background()
+	err = Init(ctx, testGpgID, "", opts)
 	Ok(t, err)
 
-	err = Insert("google.com/bar", []byte("mypassword"), false, opts)
+	err = Insert(ctx, "google.com/bar", []byte("my_password"), false, opts)
 	Ok(t, err)
-	err = Insert("google.com/baz", []byte("mypassword"), false, opts)
+	err = Insert(ctx, "google.com/baz", []byte("my_password"), false, opts)
 	Ok(t, err)
-	err = Insert("atlassian.com/baz", []byte("mypassword"), false, opts)
+	err = Insert(ctx, "atlassian.com/baz", []byte("my_password"), false, opts)
 	Ok(t, err)
 
-	ls, err := List("google.com", opts)
+	ls, err := List(ctx, "google.com", opts)
 	Ok(t, err)
 	if len(ls) != 2 {
 		t.Errorf("expected 2 items, got %d", len(ls))
@@ -109,7 +115,7 @@ func TestList(t *testing.T) {
 	Equal(t, "google.com/bar", ls[0])
 	Equal(t, "google.com/baz", ls[1])
 
-	ls, err = List("", opts)
+	ls, err = List(ctx, "", opts)
 	Ok(t, err)
 	if len(ls) != 3 {
 		t.Errorf("expected 3 items, got %d", len(ls))
@@ -129,15 +135,16 @@ func TestShow(t *testing.T) {
 	opts := &Options{
 		StoreDir: storeDir,
 	}
-	err = Init(testGpgID, "", opts)
+	ctx := context.Background()
+	err = Init(ctx, testGpgID, "", opts)
 	Ok(t, err)
 
-	err = Insert("google.com/bar", []byte("mypassword"), false, opts)
+	err = Insert(ctx, "google.com/bar", []byte("my_password"), false, opts)
 	Ok(t, err)
 
-	c, err := Show("google.com/bar", testGpgPassphrase, opts)
+	c, err := Show(ctx, "google.com/bar", testGpgPassphrase, opts)
 	Ok(t, err)
-	if string(c) != "mypassword" {
+	if string(c) != "my_password" {
 		t.Errorf("incorrect content: %s", string(c))
 		return
 	}

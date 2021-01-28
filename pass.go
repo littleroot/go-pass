@@ -9,6 +9,7 @@ package pass
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -23,14 +24,14 @@ type Options struct {
 }
 
 // Init is equivalent to the "init" subcommand.
-func Init(gpgID, subfolder string, opts *Options) error {
+func Init(ctx context.Context, gpgID, subfolder string, opts *Options) error {
 	var args []string
 	if subfolder != "" {
 		args = append(args, subfolder)
 	}
 	args = append(args, gpgID)
 
-	_, err := execCommand("init", args, nil, nil, opts)
+	_, err := execCommand(ctx, "init", args, nil, nil, opts)
 	if err != nil {
 		return fmt.Errorf("exec init: %s", err)
 	}
@@ -40,7 +41,7 @@ func Init(gpgID, subfolder string, opts *Options) error {
 // Show is equivalent to  the "ls" subcommand.
 // Unlike the original subcommand, this function does not follow and
 // list the contents of symbolic links.
-func List(subfolder string, opts *Options) ([]string, error) {
+func List(ctx context.Context, subfolder string, opts *Options) ([]string, error) {
 	storeDir := filepath.Join(os.Getenv("HOME"), ".password-store")
 	if opts != nil && opts.StoreDir != "" {
 		storeDir = opts.StoreDir
@@ -74,9 +75,9 @@ func List(subfolder string, opts *Options) ([]string, error) {
 }
 
 // Show is equivalent to the "show" subcommand.
-func Show(name, gpgPassphrase string, opts *Options) ([]byte, error) {
+func Show(ctx context.Context, name, gpgPassphrase string, opts *Options) ([]byte, error) {
 	env := []string{`PASSWORD_STORE_GPG_OPTS=--passphrase-fd=0 --pinentry-mode=loopback --batch`}
-	content, err := execCommand("show", []string{name}, strings.NewReader(gpgPassphrase), env, opts)
+	content, err := execCommand(ctx, "show", []string{name}, strings.NewReader(gpgPassphrase), env, opts)
 	if err != nil {
 		return nil, fmt.Errorf("exec show: %s", err)
 	}
@@ -84,7 +85,7 @@ func Show(name, gpgPassphrase string, opts *Options) ([]byte, error) {
 }
 
 // Insert is equivalent to the "insert" subcommand.
-func Insert(name string, content []byte, force bool, opts *Options) error {
+func Insert(ctx context.Context, name string, content []byte, force bool, opts *Options) error {
 	var args []string
 	if force {
 		args = append(args, "--force")
@@ -92,7 +93,7 @@ func Insert(name string, content []byte, force bool, opts *Options) error {
 	args = append(args, "--multiline") // always use so we can set stdin
 	args = append(args, name)
 
-	_, err := execCommand("insert", args, bytes.NewReader(content), nil, opts)
+	_, err := execCommand(ctx, "insert", args, bytes.NewReader(content), nil, opts)
 	if err != nil {
 		return fmt.Errorf("exec insert: %s", err)
 	}
@@ -100,7 +101,7 @@ func Insert(name string, content []byte, force bool, opts *Options) error {
 }
 
 // Remove is equivalent to the "rm" subcommand.
-func Remove(name string, recursive, force bool, opts *Options) error {
+func Remove(ctx context.Context, name string, recursive, force bool, opts *Options) error {
 	var args []string
 	if recursive {
 		args = append(args, "--recursive")
@@ -110,7 +111,7 @@ func Remove(name string, recursive, force bool, opts *Options) error {
 	}
 	args = append(args, name)
 
-	_, err := execCommand("rm", args, nil, nil, opts)
+	_, err := execCommand(ctx, "rm", args, nil, nil, opts)
 	if err != nil {
 		return fmt.Errorf("exec rm: %s", err)
 	}
@@ -118,7 +119,7 @@ func Remove(name string, recursive, force bool, opts *Options) error {
 }
 
 // Move is equivalent to the "mv" subcommand.
-func Move(oldPath, newPath string, force bool, opts *Options) error {
+func Move(ctx context.Context, oldPath, newPath string, force bool, opts *Options) error {
 	var args []string
 	if force {
 		args = append(args, "--force")
@@ -126,7 +127,7 @@ func Move(oldPath, newPath string, force bool, opts *Options) error {
 	args = append(args, oldPath)
 	args = append(args, newPath)
 
-	_, err := execCommand("mv", args, nil, nil, opts)
+	_, err := execCommand(ctx, "mv", args, nil, nil, opts)
 	if err != nil {
 		return fmt.Errorf("exec mv: %s", err)
 	}
@@ -134,7 +135,7 @@ func Move(oldPath, newPath string, force bool, opts *Options) error {
 }
 
 // Copy is equivalent to the "cp" subcommand.
-func Copy(oldPath, newPath string, force bool, opts *Options) error {
+func Copy(ctx context.Context, oldPath, newPath string, force bool, opts *Options) error {
 	var args []string
 	if force {
 		args = append(args, "--force")
@@ -142,7 +143,7 @@ func Copy(oldPath, newPath string, force bool, opts *Options) error {
 	args = append(args, oldPath)
 	args = append(args, newPath)
 
-	_, err := execCommand("cp", args, nil, nil, opts)
+	_, err := execCommand(ctx, "cp", args, nil, nil, opts)
 	if err != nil {
 		return fmt.Errorf("exec cp: %s", err)
 	}
@@ -150,15 +151,15 @@ func Copy(oldPath, newPath string, force bool, opts *Options) error {
 }
 
 // Git is equivalent to the "git" subcommand.
-func Git(gitArgs []string, opts *Options) error {
-	_, err := execCommand("git", gitArgs, nil, nil, opts)
+func Git(ctx context.Context, gitArgs []string, opts *Options) error {
+	_, err := execCommand(ctx, "git", gitArgs, nil, nil, opts)
 	if err != nil {
 		return fmt.Errorf("exec git subcommand: %s", err)
 	}
 	return nil
 }
 
-func execCommand(subcommand string, args []string, in io.Reader, extraEnv []string, opts *Options) (out io.Reader, err error) {
+func execCommand(ctx context.Context, subcommand string, args []string, in io.Reader, extraEnv []string, opts *Options) (out io.Reader, err error) {
 	allArgs := []string{subcommand}
 	allArgs = append(allArgs, args...)
 
@@ -170,7 +171,7 @@ func execCommand(subcommand string, args []string, in io.Reader, extraEnv []stri
 
 	var buf bytes.Buffer
 
-	cmd := exec.Command("pass", allArgs...)
+	cmd := exec.CommandContext(ctx, "pass", allArgs...)
 	cmd.Env = env
 	cmd.Stdout = &buf
 	if in != nil {
