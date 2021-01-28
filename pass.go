@@ -30,7 +30,7 @@ func Init(gpgID, subfolder string, opts *Options) error {
 	}
 	args = append(args, gpgID)
 
-	_, err := execCommand("init", args, nil, opts)
+	_, err := execCommand("init", args, nil, nil, opts)
 	if err != nil {
 		return fmt.Errorf("exec init: %s", err)
 	}
@@ -74,8 +74,9 @@ func List(subfolder string, opts *Options) ([]string, error) {
 }
 
 // Show is equivalent to the "show" subcommand.
-func Show(name string, opts *Options) ([]byte, error) {
-	content, err := execCommand("show", []string{name}, nil, opts)
+func Show(name, gpgPassphrase string, opts *Options) ([]byte, error) {
+	env := []string{`PASSWORD_STORE_GPG_OPTS=--passphrase-fd=0 --pinentry-mode=loopback --batch`}
+	content, err := execCommand("show", []string{name}, strings.NewReader(gpgPassphrase), env, opts)
 	if err != nil {
 		return nil, fmt.Errorf("exec show: %s", err)
 	}
@@ -91,7 +92,7 @@ func Insert(name string, content []byte, force bool, opts *Options) error {
 	args = append(args, "--multiline") // always use so we can set stdin
 	args = append(args, name)
 
-	_, err := execCommand("insert", args, bytes.NewReader(content), opts)
+	_, err := execCommand("insert", args, bytes.NewReader(content), nil, opts)
 	if err != nil {
 		return fmt.Errorf("exec insert: %s", err)
 	}
@@ -109,7 +110,7 @@ func Remove(name string, recursive, force bool, opts *Options) error {
 	}
 	args = append(args, name)
 
-	_, err := execCommand("rm", args, nil, opts)
+	_, err := execCommand("rm", args, nil, nil, opts)
 	if err != nil {
 		return fmt.Errorf("exec rm: %s", err)
 	}
@@ -125,7 +126,7 @@ func Move(oldPath, newPath string, force bool, opts *Options) error {
 	args = append(args, oldPath)
 	args = append(args, newPath)
 
-	_, err := execCommand("mv", args, nil, opts)
+	_, err := execCommand("mv", args, nil, nil, opts)
 	if err != nil {
 		return fmt.Errorf("exec mv: %s", err)
 	}
@@ -141,7 +142,7 @@ func Copy(oldPath, newPath string, force bool, opts *Options) error {
 	args = append(args, oldPath)
 	args = append(args, newPath)
 
-	_, err := execCommand("cp", args, nil, opts)
+	_, err := execCommand("cp", args, nil, nil, opts)
 	if err != nil {
 		return fmt.Errorf("exec cp: %s", err)
 	}
@@ -150,14 +151,14 @@ func Copy(oldPath, newPath string, force bool, opts *Options) error {
 
 // Git is equivalent to the "git" subcommand.
 func Git(gitArgs []string, opts *Options) error {
-	_, err := execCommand("git", gitArgs, nil, opts)
+	_, err := execCommand("git", gitArgs, nil, nil, opts)
 	if err != nil {
 		return fmt.Errorf("exec git subcommand: %s", err)
 	}
 	return nil
 }
 
-func execCommand(subcommand string, args []string, in io.Reader, opts *Options) (out io.Reader, err error) {
+func execCommand(subcommand string, args []string, in io.Reader, extraEnv []string, opts *Options) (out io.Reader, err error) {
 	allArgs := []string{subcommand}
 	allArgs = append(allArgs, args...)
 
@@ -165,6 +166,7 @@ func execCommand(subcommand string, args []string, in io.Reader, opts *Options) 
 	if opts != nil && opts.StoreDir != "" {
 		env = append(env, fmt.Sprintf("PASSWORD_STORE_DIR=%s", opts.StoreDir))
 	}
+	env = append(env, extraEnv...)
 
 	var buf bytes.Buffer
 

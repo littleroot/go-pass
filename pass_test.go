@@ -10,7 +10,9 @@ import (
 )
 
 const (
-	testGpgID    = "87392271845ECA084CF202242BFED8F6846F99B4"
+	testGpgID         = "0F5E1E3F3CE3019D9A3AD09313B82ACF5C4BAB55"
+	testGpgPassphrase = "test_passphrase"
+
 	tmpDirPrefix = "go-pass-test-"
 )
 
@@ -133,7 +135,7 @@ func TestShow(t *testing.T) {
 	err = Insert("google.com/bar", []byte("mypassword"), false, opts)
 	Ok(t, err)
 
-	c, err := Show("google.com/bar", opts)
+	c, err := Show("google.com/bar", testGpgPassphrase, opts)
 	Ok(t, err)
 	if string(c) != "mypassword" {
 		t.Errorf("incorrect content: %s", string(c))
