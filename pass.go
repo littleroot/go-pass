@@ -20,7 +20,7 @@ import (
 )
 
 type Options struct {
-	StoreDir string
+	StoreDir string //  Optional. The value of PASSWORD_STORE_DIR.
 }
 
 // Init is equivalent to the "init" subcommand.
@@ -38,7 +38,7 @@ func Init(ctx context.Context, gpgID, subfolder string, opts *Options) error {
 	return nil
 }
 
-// Show is equivalent to  the "ls" subcommand.
+// List is equivalent to the "ls" subcommand.
 // Unlike the original subcommand, this function does not follow and
 // list the contents of symbolic links.
 func List(ctx context.Context, subfolder string, opts *Options) ([]string, error) {
@@ -64,7 +64,10 @@ func List(ctx context.Context, subfolder string, opts *Options) ([]string, error
 		if info.IsDir() || !strings.HasSuffix(info.Name(), ".gpg") {
 			return nil
 		}
-		rel, _ := filepath.Rel(storeDir, p)
+		rel, err := filepath.Rel(storeDir, p)
+		if err != nil {
+			panic(err) // should not happen
+		}
 		ret = append(ret, strings.TrimSuffix(rel, ".gpg"))
 		return nil
 	})
@@ -154,12 +157,12 @@ func Copy(ctx context.Context, oldPath, newPath string, force bool, opts *Option
 func Git(ctx context.Context, gitArgs []string, opts *Options) error {
 	_, err := execCommand(ctx, "git", gitArgs, nil, nil, opts)
 	if err != nil {
-		return fmt.Errorf("exec git subcommand: %s", err)
+		return fmt.Errorf("exec git: %s", err)
 	}
 	return nil
 }
 
-func execCommand(ctx context.Context, subcommand string, args []string, in io.Reader, extraEnv []string, opts *Options) (out io.Reader, err error) {
+func execCommand(ctx context.Context, subcommand string, args []string, stdin io.Reader, extraEnv []string, opts *Options) (stdout io.Reader, err error) {
 	allArgs := []string{subcommand}
 	allArgs = append(allArgs, args...)
 
@@ -174,8 +177,8 @@ func execCommand(ctx context.Context, subcommand string, args []string, in io.Re
 	cmd := exec.CommandContext(ctx, "pass", allArgs...)
 	cmd.Env = env
 	cmd.Stdout = &buf
-	if in != nil {
-		cmd.Stdin = in
+	if stdin != nil {
+		cmd.Stdin = stdin
 	}
 
 	if err := cmd.Run(); err != nil {
