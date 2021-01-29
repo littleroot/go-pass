@@ -12,7 +12,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -80,11 +79,11 @@ func List(ctx context.Context, subfolder string, opts *Options) ([]string, error
 // Show is equivalent to the "show" subcommand.
 func Show(ctx context.Context, name, gpgPassphrase string, opts *Options) ([]byte, error) {
 	env := []string{`PASSWORD_STORE_GPG_OPTS=--passphrase-fd=0 --pinentry-mode=loopback --batch`}
-	content, err := execCommand(ctx, "show", []string{name}, strings.NewReader(gpgPassphrase), env, opts)
+	output, err := execCommand(ctx, "show", []string{name}, strings.NewReader(gpgPassphrase), env, opts)
 	if err != nil {
-		return nil, fmt.Errorf("exec show: %s", err)
+		return nil, fmt.Errorf("exec show: %s: %s", err, output)
 	}
-	return ioutil.ReadAll(content)
+	return output, nil
 }
 
 // Insert is equivalent to the "insert" subcommand.
@@ -162,7 +161,7 @@ func Git(ctx context.Context, gitArgs []string, opts *Options) error {
 	return nil
 }
 
-func execCommand(ctx context.Context, subcommand string, args []string, stdin io.Reader, extraEnv []string, opts *Options) (stdout io.Reader, err error) {
+func execCommand(ctx context.Context, subcommand string, args []string, stdin io.Reader, extraEnv []string, opts *Options) (stdout []byte, err error) {
 	allArgs := []string{subcommand}
 	allArgs = append(allArgs, args...)
 
@@ -172,17 +171,11 @@ func execCommand(ctx context.Context, subcommand string, args []string, stdin io
 	}
 	env = append(env, extraEnv...)
 
-	var buf bytes.Buffer
-
 	cmd := exec.CommandContext(ctx, "pass", allArgs...)
 	cmd.Env = env
-	cmd.Stdout = &buf
 	if stdin != nil {
 		cmd.Stdin = stdin
 	}
 
-	if err := cmd.Run(); err != nil {
-		return nil, err
-	}
-	return &buf, nil
+	return cmd.CombinedOutput()
 }
