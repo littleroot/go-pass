@@ -39,6 +39,7 @@ func Init(ctx context.Context, gpgID, subfolder string, opts *Options) error {
 }
 
 // List is equivalent to the "ls" subcommand.
+//
 // Unlike the original subcommand, this function does not follow and
 // list the contents of symbolic links.
 func List(ctx context.Context, subfolder string, opts *Options) ([]string, error) {
@@ -78,8 +79,9 @@ func List(ctx context.Context, subfolder string, opts *Options) ([]string, error
 }
 
 // Show is equivalent to the "show" subcommand. Unlike the original subcommand,
-// show only works for showing the content password files (ending in .gpg) and
-// not listing the content of directories.
+// Show only works for showing the content of password files (ending in .gpg) and
+// not for listing the content of directories. Use List to list the content of
+// directories.
 func Show(ctx context.Context, name, gpgPassphrase string, opts *Options) ([]byte, error) {
 	storeDir := filepath.Join(os.Getenv("HOME"), ".password-store")
 	if opts != nil && opts.StoreDir != "" {
