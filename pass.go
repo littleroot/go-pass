@@ -10,6 +10,7 @@ package pass
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -76,13 +77,35 @@ func List(ctx context.Context, subfolder string, opts *Options) ([]string, error
 	return ret, nil
 }
 
-// Show is equivalent to the "show" subcommand.
+// Show is equivalent to the "show" subcommand. Unlike the original subcommand,
+// show only works for showing the content password files (ending in .gpg) and
+// not listing the content of directories.
 func Show(ctx context.Context, name, gpgPassphrase string, opts *Options) ([]byte, error) {
-	env := []string{`PASSWORD_STORE_GPG_OPTS=--passphrase-fd=0 --pinentry-mode=loopback --batch`}
-	output, err := execCommand(ctx, "show", []string{name}, strings.NewReader(gpgPassphrase), env, opts)
+	storeDir := filepath.Join(os.Getenv("HOME"), ".password-store")
+	if opts != nil && opts.StoreDir != "" {
+		storeDir = opts.StoreDir
+	}
+
+	info, err := os.Stat(filepath.Join(storeDir, name+".gpg"))
+	if os.IsNotExist(err) {
+		return nil, errors.New("name does not exist")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("stat: %s", err)
+	}
+	if info.IsDir() {
+		return nil, errors.New("name is not a file")
+	}
+
+	extraEnv := []string{
+		`PASSWORD_STORE_GPG_OPTS=--passphrase-fd=0 --pinentry-mode=loopback --batch`,
+	}
+
+	output, err := execCommand(ctx, "show", []string{name}, strings.NewReader(gpgPassphrase), extraEnv, opts)
 	if err != nil {
 		return nil, fmt.Errorf("exec show: %s: %s", err, output)
 	}
+
 	return output, nil
 }
 
